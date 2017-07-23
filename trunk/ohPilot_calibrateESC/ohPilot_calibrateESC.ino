@@ -1,11 +1,17 @@
  // This script is used to calibrate your quad copter ESC. 
  // It reads the reciever inputs and directly sends them to the ESCs.
-  
-  unsigned long t0, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], timerESC, timerMain;
-  int tTest;
-  int tprev = 0;
-  int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
-  int periodESC = 4000;
+
+
+// parameters which can be changed if you know what you are doing
+int periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
+
+
+// parameters which should not be changed
+unsigned long t0, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], timerESC, timerMain;
+int tTest;
+int tprev = 0;
+int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
+ 
 
 
 void setup() {
@@ -25,32 +31,32 @@ void setup() {
   
 }
 
-void sendPulseESC(int p0, int p1, int p2, int p3){
+//void sendPulseESC(int p0, int p1, int p2, int p3){
   
-
-  //int Period
-  timerESC = micros()+p0;
-  PORTD = PORTD | B00010000; //set pin 4 HIGH    
-  while(micros()<timerESC);
-  PORTD = PORTD & B11101111; //set pin 4 LOW
-
-  
-}
+//}
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  delayMicroseconds(periodESC);
-  timerMain = micros();  // start of loop
-    
-  sendPulseESC(RECIEVER[2],1000,1000,1000);
+  // put your main code here, to run repeatedly:  
+  timerMain = micros();  // start of loop timer 
+
+  if (RECIEVER[2] < 1000) RECIEVER[2] = 1000;
+  
+  while(micros()-timerMain < periodESC); // end of loop timer, wait for periodESC to pass
+
+
 
   
-  //delayMicroseconds(period);
-  
+  timerESC = micros();
+  PORTD = PORTD | B11110000; //set pin 4 HIGH    
+  while(micros()-RECIEVER[2]<timerESC);
+  PORTD = PORTD & B00001111; //set pin 4 LOW
 
 
-  //end of loop
-  while(micros()-timerMain < periodESC);
+
+  //timerESC = micros();
+  //PORTD = PORTD | B00010000; //set pin 4 HIGH    
+  //while(micros()-RECIEVER[2]<timerESC);
+  //PORTD = PORTD & B11101111; //set pin 4 LOW
 }
 
 
