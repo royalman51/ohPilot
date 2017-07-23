@@ -7,11 +7,11 @@ int periodESC = 4000; //pulse period of ESC signal, thus also the main loop peri
 
 
 // parameters which should not be changed
-unsigned long t0, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], timerESC, timerMain;
+unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC, timerMain;
 int tTest;
 int tprev = 0;
 int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
- 
+int pin4, pin5, pin6, pin7;
 
 
 void setup() {
@@ -39,17 +39,59 @@ void loop() {
   // put your main code here, to run repeatedly:  
   timerMain = micros();  // start of loop timer 
 
+  //sets minimum value to 1000ms
+  if (RECIEVER[0] < 1000) RECIEVER[0] = 1000;
+  if (RECIEVER[1] < 1000) RECIEVER[1] = 1000;
   if (RECIEVER[2] < 1000) RECIEVER[2] = 1000;
+  if (RECIEVER[3] < 1000) RECIEVER[3] = 1000;
+
+  //sets maximum value to 2000ms
+  if (RECIEVER[0] > 2000) RECIEVER[0] = 2000;
+  if (RECIEVER[1] > 2000) RECIEVER[1] = 2000;
+  if (RECIEVER[2] > 2000) RECIEVER[2] = 2000;
+  if (RECIEVER[3] > 2000) RECIEVER[3] = 2000;
+
+  //sets output to ESCs
+  ESCOUT[0] = RECIEVER[2];
+  ESCOUT[1] = RECIEVER[2];
+  ESCOUT[2] = RECIEVER[2];
+  ESCOUT[3] = RECIEVER[2];
   
   while(micros()-timerMain < periodESC); // end of loop timer, wait for periodESC to pass
-
-
-
+  timerMain = micros();  
   
-  timerESC = micros();
-  PORTD = PORTD | B11110000; //set pin 4 HIGH    
-  while(micros()-RECIEVER[2]<timerESC);
-  PORTD = PORTD & B00001111; //set pin 4 LOW
+  PORTD |= B11110000; //set pins to high (motor 1,2,3,4) HIGH   
+  pin4  = 1;
+  pin5  = 1;
+  pin6  = 1;
+  pin7  = 1;
+  timerPin4 = ESCOUT[0] + timerMain;
+  timerPin5 = ESCOUT[0] + timerMain;
+  timerPin6 = ESCOUT[0] + timerMain;
+  timerPin7 = ESCOUT[0] + timerMain;
+
+  while (pin4 == 1 & pin5 == 1 & pin6 == 1 & pin7 == 1){
+    timerESC = micros();
+    if (timerPin4 < timerESC){      
+      PORTD &= B11101111;      //set pin 4 (motor 1) LOW
+      pin4  = 0;       
+    }
+    if (timerPin5 < timerESC){      
+      PORTD &= B11011111;      //set pin 4 (motor 1) LOW
+      pin5  = 0;       
+    }
+    if (timerPin6 < timerESC){      
+      PORTD &= B10111111;      //set pin 4 (motor 1) LOW
+      pin6  = 0;       
+    }
+    if (timerPin7 < timerESC){      
+      PORTD &= B01111111;      //set pin 4 (motor 1) LOW
+      pin7  = 0;       
+    }
+
+    
+    
+  }
 
 
 
