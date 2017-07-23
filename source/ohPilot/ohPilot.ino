@@ -1,4 +1,4 @@
- // This script is used to calibrate your quad copter ESC. 
+ // Main ohPilot script
  // It reads the reciever inputs and directly sends them to the ESCs.
 
 
@@ -13,6 +13,7 @@ int tprev = 0;
 int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
 int pin4, pin5, pin6, pin7;
 int motorStart = 0;
+int THROTTLE, ROLL, PITCH, YAW;
 
 void setup() {
   // put your setup code here, to run once:
@@ -31,23 +32,19 @@ void setup() {
   PCMSK0 |= (1<<PCINT2); //config pin interrupt on pin 10
   PCMSK0 |= (1<<PCINT3); //config pin interrupt on pin 11 
 
-  delay(5000);
+  delay(2000);
   //turns on LED  
   blinkStatusLED(200,4);
 }
-
-//void sendPulseESC(int p0, int p1, int p2, int p3){
-  
-//}
 
 void loop() {
   // put your main code here, to run repeatedly:  
   timerMain = micros();  // start of loop timer 
 
   
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)) motorStart = 1;  
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)) motorStart = 0;
-  
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)) motorStart = 1; //turns on motors
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)) motorStart = 0; //turns off motors
+  if (RECIEVER[2] <= 1020) RECIEVER[3] = 1500; // disables yaw if throttle is zero
 
   //Serial.println(motorStart);
   //Serial.print("Roll == ");
@@ -61,24 +58,33 @@ void loop() {
    
   
 
-    //sets minimum value to 1000ms
-    if (RECIEVER[0] < 1000) RECIEVER[0] = 1000;
-    if (RECIEVER[1] < 1000) RECIEVER[1] = 1000;
-    if (RECIEVER[2] < 1060) RECIEVER[2] = 1060; //keeps engines running
-    if (RECIEVER[3] < 1000) RECIEVER[3] = 1000;
-
-    //sets maximum value to 2000ms
-    if (RECIEVER[0] > 2000) RECIEVER[0] = 2000;
-    if (RECIEVER[1] > 2000) RECIEVER[1] = 2000;
-    if (RECIEVER[2] > 2000) RECIEVER[2] = 2000;
-    if (RECIEVER[3] > 2000) RECIEVER[3] = 2000;
 
     if (motorStart == 1){
-    //sets output to ESCs
-      ESCOUT[0] = RECIEVER[2];
-      ESCOUT[1] = RECIEVER[2];
-      ESCOUT[2] = RECIEVER[2];
-      ESCOUT[3] = RECIEVER[2];
+      //value of throttle pitch roll and yaw relative to their zero position;
+      THROTTLE = RECIEVER[2];
+      PITCH    = RECIEVER[1]-1500;
+      ROLL     = RECIEVER[0]-1500;
+      YAW      = RECIEVER[3]-1500;
+      
+      //sets output to ESCs
+      ESCOUT[0] = THROTTLE-PITCH-ROLL+YAW;
+      ESCOUT[1] = THROTTLE+PITCH-ROLL-YAW;
+      ESCOUT[2] = THROTTLE+PITCH+ROLL+YAW;
+      ESCOUT[3] = THROTTLE-PITCH+ROLL-YAW;
+
+
+      //sets minimum value to 1000ms
+      if (ESCOUT[0] < 1060) ESCOUT[0] = 1060;
+      if (ESCOUT[1] < 1060) ESCOUT[1] = 1060;
+      if (ESCOUT[2] < 1060) ESCOUT[2] = 1060; //keeps engines running
+      if (ESCOUT[3] < 1060) ESCOUT[3] = 1060;
+
+      //sets maximum value to 2000ms
+      if (ESCOUT[0] > 2000) ESCOUT[0] = 2000;
+      if (ESCOUT[1] > 2000) ESCOUT[1] = 2000;
+      if (ESCOUT[2] > 2000) ESCOUT[2] = 2000;
+      if (ESCOUT[3] > 2000) ESCOUT[3] = 2000;
+
     }
     else{
       ESCOUT[0] = 1000;
