@@ -11,7 +11,7 @@ unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPi
 int tTest;
 int tprev = 0;
 int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
-int pin4, pin5, pin6, pin7;
+int pin4,pin5,pin6,pin7;
 int motorStart = 0;
 int THROTTLE, ROLL, PITCH, YAW;
 
@@ -32,14 +32,16 @@ void setup() {
   PCMSK0 |= (1<<PCINT2); //config pin interrupt on pin 10
   PCMSK0 |= (1<<PCINT3); //config pin interrupt on pin 11 
 
-  delay(2000);
+  delay(5000);
   //turns on LED  
   blinkStatusLED(200,4);
+
+  timerMain = micros();  // start of loop timer 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:  
-  timerMain = micros();  // start of loop timer 
+  
 
   
   if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)) motorStart = 1; //turns on motors
@@ -86,7 +88,7 @@ void loop() {
       if (ESCOUT[3] > 2000) ESCOUT[3] = 2000;
 
     }
-    else{
+    else{ //if motor are not running
       ESCOUT[0] = 1000;
       ESCOUT[1] = 1000;
       ESCOUT[2] = 1000;
@@ -101,25 +103,29 @@ void loop() {
     timerPin5 = ESCOUT[1] + timerMain;
     timerPin6 = ESCOUT[2] + timerMain;
     timerPin7 = ESCOUT[3] + timerMain;
+    //pin4 = 1;
+    //pin5 = 1;
+    //pin6 = 1;
+    //pin7 = 1;
 
-    //while (pin4 == 1 & pin5 == 1 & pin6 == 1 & pin7 == 1){
+    //while (pin4 == 1 && pin5 == 1 && pin6 == 1 && pin7 == 1){
     while (PORTD >= 16){
       timerESC = micros();
       if (timerPin4 <= timerESC){      
-        PORTD &= B11101111;      //set pin 4 (motor 1) LOW
-        //pin4  = 0;       
+        PORTD &= B11101111;      //set pin 4 (motor 1) LOW  
+        //pin4 = 0;           
       }
       if (timerPin5 <= timerESC){      
-        PORTD &= B11011111;      //set pin 5 (motor 1) LOW
-        //pin5  = 0;       
+        PORTD &= B11011111;      //set pin 5 (motor 1) LOW      
+        //pin5 = 0;       
       }
       if (timerPin6 <= timerESC){      
-        PORTD &= B10111111;      //set pin 6 (motor 1) LOW
-        //pin6  = 0;       
+        PORTD &= B10111111;      //set pin 6 (motor 1) LOW     
+        //pin6 = 0;         
       }
       if (timerPin7 <= timerESC){      
-        PORTD &= B01111111;      //set pin 7 (motor 1) LOW
-        //pin7  = 0;       
+        PORTD &= B01111111;      //set pin 7 (motor 1) LOW 
+        //pin7 = 0;         
       }
     }
   
@@ -137,7 +143,7 @@ void loop() {
 ISR(PCINT0_vect){
   timerPins = micros();
 
-  // CHANHEL 0
+  // CHANNEL 0
   if (PINB & B00000001){
     pin8  = 1;
     timerPin8 = timerPins; //signal 1
@@ -147,7 +153,7 @@ ISR(PCINT0_vect){
     RECIEVER[0] = timerPins - timerPin8; //signal 0
   }
 
-  // CHANHEL 1
+  // CHANNEL 1
   if (PINB & B00000010){
     pin9  = 1;
     timerPin9 = timerPins; //signal 1
@@ -157,7 +163,7 @@ ISR(PCINT0_vect){
     RECIEVER[1] = timerPins - timerPin9; //signal 0
   }
 
-  // CHANHEL 3
+  // CHANNEL 3
   if (PINB & B00000100){
     pin10 = 1;
     timerPin10 = timerPins; //signal 1
@@ -167,7 +173,7 @@ ISR(PCINT0_vect){
     RECIEVER[2] = timerPins - timerPin10; //signal 0
   }
 
-  // CHANHEL 4
+  // CHANNEL 4
   if (PINB & B00001000){
     pin11 = 1;
     timerPin11 = timerPins; //signal 1
@@ -179,6 +185,7 @@ ISR(PCINT0_vect){
 }
 
 void blinkStatusLED(int interval, int blinks){
+  //LED blink routine. Do not run in void main! Only in void setup.  
   int i;
   for (i=1;i<=blinks;i++){
     digitalWrite(12,HIGH);
