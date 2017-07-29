@@ -1,4 +1,4 @@
- // This script is used to calibrate your quad copter ESC. 
+ // Main ohPilot script
  // It reads the reciever inputs and directly sends them to the ESCs.
 
 
@@ -11,8 +11,9 @@ unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPi
 int tTest;
 int tprev = 0;
 int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
-int pin4, pin5, pin6, pin7;
+int pin4,pin5,pin6,pin7;
 int motorStart = 0;
+int THROTTLE, ROLL, PITCH, YAW;
 
 void setup() {
   // put your setup code here, to run once:
@@ -34,20 +35,18 @@ void setup() {
   delay(5000);
   //turns on LED  
   blinkStatusLED(200,4);
-}
 
-//void sendPulseESC(int p0, int p1, int p2, int p3){
-  
-//}
+  timerMain = micros();  // start of loop timer 
+}
 
 void loop() {
   // put your main code here, to run repeatedly:  
-  timerMain = micros();  // start of loop timer 
+  
 
   
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)) motorStart = 1;  
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)) motorStart = 0;
-  
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)) motorStart = 1; //turns on motors
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)) motorStart = 0; //turns off motors
+  if (RECIEVER[2] <= 1020) RECIEVER[3] = 1500; // disables yaw if throttle is zero
 
   //Serial.println(motorStart);
   //Serial.print("Roll == ");
@@ -61,26 +60,35 @@ void loop() {
    
   
 
-    //sets minimum value to 1000ms
-    if (RECIEVER[0] < 1000) RECIEVER[0] = 1000;
-    if (RECIEVER[1] < 1000) RECIEVER[1] = 1000;
-    if (RECIEVER[2] < 1060) RECIEVER[2] = 1060; //keeps engines running
-    if (RECIEVER[3] < 1000) RECIEVER[3] = 1000;
-
-    //sets maximum value to 2000ms
-    if (RECIEVER[0] > 2000) RECIEVER[0] = 2000;
-    if (RECIEVER[1] > 2000) RECIEVER[1] = 2000;
-    if (RECIEVER[2] > 2000) RECIEVER[2] = 2000;
-    if (RECIEVER[3] > 2000) RECIEVER[3] = 2000;
 
     if (motorStart == 1){
-    //sets output to ESCs
-      ESCOUT[0] = RECIEVER[2];
-      ESCOUT[1] = RECIEVER[2];
-      ESCOUT[2] = RECIEVER[2];
-      ESCOUT[3] = RECIEVER[2];
+      //value of throttle pitch roll and yaw relative to their zero position;
+      THROTTLE = RECIEVER[2];
+      PITCH    = RECIEVER[1]-1500;
+      ROLL     = RECIEVER[0]-1500;
+      YAW      = RECIEVER[3]-1500;
+      
+      //sets output to ESCs
+      ESCOUT[0] = THROTTLE-PITCH-ROLL+YAW;
+      ESCOUT[1] = THROTTLE+PITCH-ROLL-YAW;
+      ESCOUT[2] = THROTTLE+PITCH+ROLL+YAW;
+      ESCOUT[3] = THROTTLE-PITCH+ROLL-YAW;
+
+
+      //sets minimum value to 1000ms
+      if (ESCOUT[0] < 1060) ESCOUT[0] = 1060;
+      if (ESCOUT[1] < 1060) ESCOUT[1] = 1060;
+      if (ESCOUT[2] < 1060) ESCOUT[2] = 1060; //keeps engines running
+      if (ESCOUT[3] < 1060) ESCOUT[3] = 1060;
+
+      //sets maximum value to 2000ms
+      if (ESCOUT[0] > 2000) ESCOUT[0] = 2000;
+      if (ESCOUT[1] > 2000) ESCOUT[1] = 2000;
+      if (ESCOUT[2] > 2000) ESCOUT[2] = 2000;
+      if (ESCOUT[3] > 2000) ESCOUT[3] = 2000;
+
     }
-    else{
+    else{ //if motor are not running
       ESCOUT[0] = 1000;
       ESCOUT[1] = 1000;
       ESCOUT[2] = 1000;
@@ -95,25 +103,29 @@ void loop() {
     timerPin5 = ESCOUT[1] + timerMain;
     timerPin6 = ESCOUT[2] + timerMain;
     timerPin7 = ESCOUT[3] + timerMain;
+    //pin4 = 1;
+    //pin5 = 1;
+    //pin6 = 1;
+    //pin7 = 1;
 
-    //while (pin4 == 1 & pin5 == 1 & pin6 == 1 & pin7 == 1){
+    //while (pin4 == 1 && pin5 == 1 && pin6 == 1 && pin7 == 1){
     while (PORTD >= 16){
       timerESC = micros();
       if (timerPin4 <= timerESC){      
-        PORTD &= B11101111;      //set pin 4 (motor 1) LOW
-        //pin4  = 0;       
+        PORTD &= B11101111;      //set pin 4 (motor 1) LOW  
+        //pin4 = 0;           
       }
       if (timerPin5 <= timerESC){      
-        PORTD &= B11011111;      //set pin 5 (motor 1) LOW
-        //pin5  = 0;       
+        PORTD &= B11011111;      //set pin 5 (motor 1) LOW      
+        //pin5 = 0;       
       }
       if (timerPin6 <= timerESC){      
-        PORTD &= B10111111;      //set pin 6 (motor 1) LOW
-        //pin6  = 0;       
+        PORTD &= B10111111;      //set pin 6 (motor 1) LOW     
+        //pin6 = 0;         
       }
       if (timerPin7 <= timerESC){      
-        PORTD &= B01111111;      //set pin 7 (motor 1) LOW
-        //pin7  = 0;       
+        PORTD &= B01111111;      //set pin 7 (motor 1) LOW 
+        //pin7 = 0;         
       }
     }
   
@@ -131,7 +143,7 @@ void loop() {
 ISR(PCINT0_vect){
   timerPins = micros();
 
-  // CHANHEL 0
+  // CHANNEL 0
   if (PINB & B00000001){
     pin8  = 1;
     timerPin8 = timerPins; //signal 1
@@ -141,7 +153,7 @@ ISR(PCINT0_vect){
     RECIEVER[0] = timerPins - timerPin8; //signal 0
   }
 
-  // CHANHEL 1
+  // CHANNEL 1
   if (PINB & B00000010){
     pin9  = 1;
     timerPin9 = timerPins; //signal 1
@@ -151,7 +163,7 @@ ISR(PCINT0_vect){
     RECIEVER[1] = timerPins - timerPin9; //signal 0
   }
 
-  // CHANHEL 3
+  // CHANNEL 3
   if (PINB & B00000100){
     pin10 = 1;
     timerPin10 = timerPins; //signal 1
@@ -161,7 +173,7 @@ ISR(PCINT0_vect){
     RECIEVER[2] = timerPins - timerPin10; //signal 0
   }
 
-  // CHANHEL 4
+  // CHANNEL 4
   if (PINB & B00001000){
     pin11 = 1;
     timerPin11 = timerPins; //signal 1
@@ -173,6 +185,7 @@ ISR(PCINT0_vect){
 }
 
 void blinkStatusLED(int interval, int blinks){
+  //LED blink routine. Do not run in void main! Only in void setup.  
   int i;
   for (i=1;i<=blinks;i++){
     digitalWrite(12,HIGH);
