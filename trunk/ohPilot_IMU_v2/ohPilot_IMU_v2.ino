@@ -55,9 +55,6 @@ void loop() {
 
   //absolute vector of Z_ACC
   Z_ACC = sqrt((ACC_X*ACC_X)+(ACC_Y*ACC_Y)+(ACC_Z*ACC_Z));
-
-
-
   if(abs(ACC_Y) < Z_ACC)    PITCH_ACC = asin((float)ACC_Y/Z_ACC)* 57.296; //prevents NaN values  
   if(abs(ACC_X) < Z_ACC)    ROLL_ACC  = asin((float)ACC_X/Z_ACC)*-57.296; //prevents NaN values
   
@@ -66,16 +63,27 @@ void loop() {
   //PITCH_ACC = 90-(acos(ACC_Y/zeroACCz)*(180/PI)); 
 
   // -----integration of angular rates to calculate angles-----
-  YAW_GYR   += GYR_yaw  /(1000/periodESC);   //1000/periodESC if millis() is used for loop counter, 1000000/periodESC for micros()
-  PITCH_GYR -= GYR_pitch/(1000/periodESC);
+  YAW_GYR   -= GYR_yaw  /(1000/periodESC);   //1000/periodESC if millis() is used for loop counter, 1000000/periodESC for micros()
+  PITCH_GYR += GYR_pitch/(1000/periodESC);
   ROLL_GYR  += GYR_roll /(1000/periodESC);
+
+  PITCH_GYR += ROLL_GYR  * sin((GYR_yaw/(1000/periodESC)) *0.0174532);  //coupling Pitch and roll
+  ROLL_GYR  -= PITCH_GYR * sin((GYR_yaw/(1000/periodESC)) *0.0174532);
 
   YAW   = YAW_GYR;
   PITCH = 0.996*PITCH_GYR + 0.004*PITCH_ACC;
   ROLL  = 0.996*ROLL_GYR  + 0.004*ROLL_ACC;
+
+  Serial.println(PITCH);
   
-  
-  Serial.println(PITCH_GYR);
+  //Serial.print("ACC_X = ");
+  //Serial.print(ACC_X);
+  //Serial.print(", ACC_Y = ");
+  //Serial.print(ACC_Y);
+  //Serial.print(", ACC_Z = ");
+  //Serial.print(ACC_Z);
+  //Serial.print(", Z_ACC = ");
+  //Serial.println(Z_ACC);
   
   
   //delay(100);
@@ -112,7 +120,7 @@ void getIMUData(){
   if (calIMU == 1){
     ACC_X = (ACC_X / accScale) - zeroACCx;
     ACC_Y = (ACC_Y / accScale) - zeroACCy;
-    ACC_Z = (ACC_Z / accScale) - zeroACCz;
+    ACC_Z = (ACC_Z / accScale) - (zeroACCz-1);
     GYR_roll  = (GYR_roll /gyrScale) - zeroRoll; //raw output of gyro in [deg/s]
     GYR_pitch = (GYR_pitch/gyrScale) - zeroPitch;
     GYR_yaw   = (GYR_yaw  /gyrScale) - zeroYaw;
