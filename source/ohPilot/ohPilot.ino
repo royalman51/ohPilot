@@ -7,7 +7,8 @@ int periodESC = 4000; //pulse period of ESC signal, thus also the main loop peri
 
 
 // parameters which should not be changed
-unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC, timerMain;
+unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC;
+long timerMain;
 int tTest;
 int tprev = 0;
 int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
