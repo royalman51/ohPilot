@@ -9,21 +9,21 @@ long periodESC = 4000; //pulse period of ESC signal, thus also the main loop per
 float scaleRC = 15.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
 // PID settings;
-float P_pitch = 1.0;
-float I_pitch = 0.0;
+float P_pitch = 0.6;
+float I_pitch = 0.00;
 float D_pitch = 20.0;
 
 float P_roll = P_pitch;
 float I_roll = I_pitch;
 float D_roll = D_pitch;
 
-float P_yaw = 1.0;
+float P_yaw = 0.0;
 float I_yaw = 0.0;
-float D_yaw = 0.0;
+float D_yaw = 10.0;
 
-long maxOutPitch = 100;
-long maxOutRoll  = 100;
-long maxOutYaw   = 100;
+long maxOutPitch = 300;
+long maxOutRoll  = 300;
+long maxOutYaw   = 300;
 
 // parameters which should not be changed, parameters for sending and recieving motor signals
 unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC;
@@ -107,7 +107,10 @@ void loop() {
     prevErrorRoll  = 0;
     prevErrorYaw   = 0;
   }
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)) motorStart = 0; //turns off motors
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)){    
+    while ((micros()-timerMain < 16000) && (RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020));
+    motorStart = 0; //turns off motors
+  }
   if (RECIEVER[2] <= 1020) RECIEVER[3] = 1500; // disables yaw if throttle is zero
 
   //=====dead bands for stable zero RC input=====
