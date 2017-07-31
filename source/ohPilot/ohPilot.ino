@@ -63,7 +63,7 @@ float zeroACCz = 0.0;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(57600);
+  //Serial.begin(57600);
   
   //-----setup for arduino ports------   
   //set ports 4,5,6,7 to outputs
