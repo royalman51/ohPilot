@@ -17,24 +17,26 @@ float P_roll = P_pitch;
 float I_roll = I_pitch;
 float D_roll = D_pitch;
 
-float P_yaw = 0.0;
+float P_yaw = 1.0;
 float I_yaw = 0.0;
 float D_yaw = 10.0;
 
 long maxOutPitch = 300;
 long maxOutRoll  = 300;
-long maxOutYaw   = 300;
+long maxOutYaw   = 200;
 
 // parameters which should not be changed, parameters for sending and recieving motor signals
-unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC;
+unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPin12, timerPins, RECIEVER[4], ESCOUT[3], timerESC;
 long timerMain;
 int tTest;
 int tprev = 0;
-int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0;
+int pin8 = 0,pin9 = 0,pin10 = 0,pin11 = 0,pin12=0;
 //int pin4,pin5,pin6,pin7;
 int motorStart = 0;
 long THROTTLE_RC, ROLL_RC, PITCH_RC, YAW_RC; //keep as integer or long
 float anglePitchRC=0,angleRollRC=0,angleYawRC=0; //input angles from RC
+int iStart =0;
+
 
 //PID parameters
 float errorPitch, errorYaw, errorRoll;
@@ -95,7 +97,12 @@ void loop() {
   // put your main code here, to run repeatedly:  
   
   getIMUAngles();
-
+  //Serial.print(motorStart);
+  //Serial.print(", i = ");
+  //Serial.print(iStart);
+  //Serial.print(", yaw out = ");
+  //Serial.println(PIDoutYaw);
+  
   //=====Motor start routine, sets flag and PID errors to zero=====
   if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)){
     motorStart = 1; //turns on motors
@@ -107,11 +114,19 @@ void loop() {
     prevErrorRoll  = 0;
     prevErrorYaw   = 0;
   }
+  
   if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)){    
-    while ((micros()-timerMain < 16000) && (RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020));
-    motorStart = 0; //turns off motors
+    iStart += 1;
+    if (iStart > 50){
+      motorStart = 0; //turns off motors
+      iStart = 0;
+    }    
   }
-  if (RECIEVER[2] <= 1020) RECIEVER[3] = 1500; // disables yaw if throttle is zero
+  else{
+    iStart = 0;
+  }
+  
+  
 
   //=====dead bands for stable zero RC input=====
   if((RECIEVER[0] < 1520) && (RECIEVER[0] > 1480)) RECIEVER[0] = 1500; //roll
@@ -151,13 +166,14 @@ void loop() {
       //Serial.print(refYAW);
       //Serial.print(", PID out = ");
       //Serial.println(PIDoutYaw);
-      
+      if (RECIEVER[2] <= 1020) PIDoutYaw = 0; // disables yaw if throttle is zero
+            
       //sets output to ESCs
       ESCOUT[0] = THROTTLE_RC+PIDoutPitch-PIDoutRoll+PIDoutYaw; //motor1, front right
       ESCOUT[1] = THROTTLE_RC-PIDoutPitch-PIDoutRoll-PIDoutYaw; //motor2, rear right
       ESCOUT[2] = THROTTLE_RC-PIDoutPitch+PIDoutRoll+PIDoutYaw; //motor3, rear left
-      ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor4, front left
-
+      ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor4, front left      
+      
       //sets minimum value to 1000ms
       if (ESCOUT[0] < 1070) ESCOUT[0] = 1070;
       if (ESCOUT[1] < 1070) ESCOUT[1] = 1070;
@@ -425,6 +441,16 @@ ISR(PCINT0_vect){
     pin11 = 0;
     RECIEVER[3] = timerPins - timerPin11; //signal 0
   }
+
+  //// CHANNEL 5
+  //if (PINB & B00010000){
+  //  pin12 = 1;
+  //  timerPin12 = timerPins; //signal 1
+  //}  
+  //else if (pin12 == 1 && !(PINB & B00010000)){ 
+  //  pin12 = 0;
+  //  RECIEVER[4] = timerPins - timerPin12; //signal 0
+  //}
 }
 
 void blinkStatusLED(int interval, int blinks){
