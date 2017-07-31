@@ -61,9 +61,25 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  
+  getIMUAngles();
 
+  
+  //dampen output for LCD
+  angle_pitch_output = angle_pitch_output * 0.9 + PITCH * 0.1; 
+  angle_roll_output  = angle_roll_output  * 0.9 + ROLL  * 0.1;
+  
+  write_LCD();
+  
+  while(micros() - timerMain < periodESC);                 
+  timerMain = micros(); 
+}
+
+void getIMUAngles(){
+//===== Fuction for calculating IMU angles from raw data=====
+  // get raw data
   getIMUData();
-
+  
   //correcting for zero offset of gyro. Offset is determined during calibration  
   GYR_pitch -= zeroX; //pitch
   GYR_roll  -= zeroY; //roll
@@ -83,33 +99,26 @@ void loop() {
   PITCH_ACC = asin((float)ACC_Y/Z_ACC)*  57.296;
   ROLL_ACC  = asin((float)ACC_X/Z_ACC)* -57.296;
 
-  PITCH_ACC -= zeroACCx; //zero offset correction for accelerometer
+  //zero offset correction for accelerometer
+  PITCH_ACC -= zeroACCx; 
   ROLL_ACC  -= zeroACCy;
   
   if (calIMU==1){        
+    //complementary filter
     PITCH = PITCH * 0.9996 + PITCH_ACC * 0.0004;
     ROLL  = ROLL  * 0.9996 + ROLL_ACC  * 0.0004;
   } 
   else{
+    //for first run, angles equal to angles of accelerometer
     PITCH = PITCH_ACC;
     ROLL  = ROLL_ACC;
     calIMU = 1;
   }
-
-  
-  //dampen output for LCD
-  angle_pitch_output = angle_pitch_output * 0.9 + PITCH * 0.1; 
-  angle_roll_output  = angle_roll_output  * 0.9 + ROLL  * 0.1;
-  
-  write_LCD();
-  
-  while(micros() - timerMain < periodESC);                 
-  timerMain = micros(); 
 }
 
 
 void getIMUData(){
-  //function for reading IMU 6050
+//===== Fuction for reading MPU6050 raw data=====
   
   Wire.beginTransmission(IMU_ADDR);
   Wire.write(ACC_REG);
@@ -129,6 +138,8 @@ void getIMUData(){
 }
 
 void calibrateIMU(){
+//===== Fuction for calibrating the IMU at the start (void setup)=====
+  
   int points = 2500;
   int stateLED = 0;
   digitalWrite(12,HIGH);
@@ -157,6 +168,8 @@ void calibrateIMU(){
 
 
 void initIMU(){
+//===== Fuction for initializing MPU6050 comms=====
+  
   //sets communtiotion towards IMU and sends wake up call;
   Wire.begin();
   Wire.beginTransmission(IMU_ADDR);
@@ -174,10 +187,7 @@ void initIMU(){
   Wire.beginTransmission(IMU_ADDR); //GYRO_CONFIG address
   Wire.write(0x1C);
   Wire.write(0x16); //AFS_SEL=2 -> range 4096 1/g
-  Wire.endTransmission();
-
-  
-  
+  Wire.endTransmission();  
   
 }
 
