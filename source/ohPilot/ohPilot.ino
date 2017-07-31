@@ -11,7 +11,7 @@ float scaleRC = 15.0; //influences maximum angle of quad (RATE), angle = 500/sca
 // PID settings;
 float P_pitch = 1.0;
 float I_pitch = 0.0;
-float D_pitch = 0.0;
+float D_pitch = 20.0;
 
 float P_roll = P_pitch;
 float I_roll = I_pitch;
@@ -21,9 +21,9 @@ float P_yaw = 1.0;
 float I_yaw = 0.0;
 float D_yaw = 0.0;
 
-long maxOutPitch = 300;
-long maxOutRoll  = 300;
-long maxOutYaw   = 300;
+long maxOutPitch = 100;
+long maxOutRoll  = 100;
+long maxOutYaw   = 100;
 
 // parameters which should not be changed, parameters for sending and recieving motor signals
 unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[4], ESCOUT[4], timerESC;
@@ -156,10 +156,10 @@ void loop() {
       ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor4, front left
 
       //sets minimum value to 1000ms
-      if (ESCOUT[0] < 1060) ESCOUT[0] = 1060;
-      if (ESCOUT[1] < 1060) ESCOUT[1] = 1060;
-      if (ESCOUT[2] < 1060) ESCOUT[2] = 1060; //keeps engines running
-      if (ESCOUT[3] < 1060) ESCOUT[3] = 1060;
+      if (ESCOUT[0] < 1070) ESCOUT[0] = 1070;
+      if (ESCOUT[1] < 1070) ESCOUT[1] = 1070;
+      if (ESCOUT[2] < 1070) ESCOUT[2] = 1070; //keeps engines running
+      if (ESCOUT[3] < 1070) ESCOUT[3] = 1070;
 
       //sets maximum value to 2000ms
       if (ESCOUT[0] > 2000) ESCOUT[0] = 2000;
