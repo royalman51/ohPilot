@@ -6,24 +6,24 @@
 
 // parameters which can be changed if you know what you are doing
 long periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
-float scaleRC = 15.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
+float scaleRC = 16.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
 // PID settings;
-float P_pitch = 0.1;
-float I_pitch = 0.0;
-float D_pitch = 15.0; //restless at 30. stable at 20. Set to 0.75*20 = 15
+float P_pitch = 0.20;   //(0.6)(0.035) 
+float I_pitch = 0.00; //(0.00005)
+float D_pitch = 30.0;    //(30.0)(15.0)
 
-float P_roll = P_pitch;
-float I_roll = I_pitch;
-float D_roll = D_pitch;
+float P_roll  = 0.20;
+float I_roll  = 0.00;
+float D_roll  = 30.0;
 
-float P_yaw = 0.0;
-float I_yaw = 0.0;
+float P_yaw = 0.04;
+float I_yaw = 0.000;  //(0.0001)
 float D_yaw = 0.0;
 
-long maxOutPitch = 300;
-long maxOutRoll  = 300;
-long maxOutYaw   = 200;
+long maxOutPitch = 400;
+long maxOutRoll  = 400;
+long maxOutYaw   = 400;
 
 // parameters which should not be changed, parameters for sending and recieving motor signals
 unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPin12, timerPins, RECIEVER[4], ESCOUT[3], timerESC;
@@ -68,7 +68,7 @@ float zeroACCz = 0.0;
 
 void setup() {
   // put your setup code here, to run once:
-  //Serial.begin(57600);
+  Serial.begin(57600);
   
   //-----setup for arduino ports------   
   //set ports 4,5,6,7 to outputs
@@ -78,6 +78,8 @@ void setup() {
   digitalWrite(12,HIGH); //turns on STATUS LED
 
   Wire.begin();
+
+  delay(1500);
   
   //-----configure interrupts-----
   PCICR  |= (1<<PCIE0); //sets Pin change interrupt control register to activate PCMSK0 register
@@ -141,7 +143,7 @@ void loop() {
   //=====Converts RC signals to angles=====
   anglePitchRC = -((long)RECIEVER[1]-1500)/scaleRC; //= reference for PID
   angleRollRC  =  ((long)RECIEVER[0]-1500)/scaleRC; //= reference for PID
-  angleYawRC   =  ((long)RECIEVER[3]-1500)/scaleRC;
+  angleYawRC   = -((long)RECIEVER[3]-1500)/2;
   
   //Serial.print("Roll == ");
   //Serial.print(angleRollRC);
@@ -160,24 +162,24 @@ void loop() {
       if (THROTTLE_RC > 1900) THROTTLE_RC = 1900;     //set maximum to throttle, otherwise PID has no room for corrections
                   
       //setpoints inputs for PID, completentary filter can be used
-      setYAW   = setYAW   * 0.0 + 1.0 * (GYR_yaw/65.5); //yaw refernce is yaw angular rate
+      setYAW   = setYAW   * 0.6 + 0.4 * (GYR_yaw/65.5); //yaw refernce is yaw angular rate
       setPITCH = setPITCH * 0.0 + 1.0 * PITCH;          //pitch ref is pitch angle
       setROLL  = setROLL  * 0.0 + 1.0 * ROLL;           //rol ref is roll angle
 
       myPID();
 
       //Serial.print("Pitch = ");
-      //Serial.print(setPITCH);
-      //Serial.print(", ");
-      //Serial.println(PIDoutPitchAngle);
+      Serial.print(setPITCH);
+      Serial.print(", ");
+      Serial.println(PIDoutPitch);
       
       if (RECIEVER[2] <= 1020) PIDoutYaw = 0; // disables yaw if throttle is zero
             
       //sets output to ESCs
-      ESCOUT[0] = THROTTLE_RC+PIDoutPitch-PIDoutRoll+PIDoutYaw; //motor1, front right
-      ESCOUT[1] = THROTTLE_RC-PIDoutPitch-PIDoutRoll-PIDoutYaw; //motor2, rear right
-      ESCOUT[2] = THROTTLE_RC-PIDoutPitch+PIDoutRoll+PIDoutYaw; //motor3, rear left
-      ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor4, front left      
+      ESCOUT[0] = THROTTLE_RC+PIDoutPitch-PIDoutRoll-PIDoutYaw; //motor1, front right
+      ESCOUT[1] = THROTTLE_RC-PIDoutPitch-PIDoutRoll+PIDoutYaw; //motor2, rear right
+      ESCOUT[2] = THROTTLE_RC-PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor3, rear left
+      ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll+PIDoutYaw; //motor4, front left      
       
       //sets minimum value to 1000ms
       if (ESCOUT[0] < 1070) ESCOUT[0] = 1000;
@@ -239,7 +241,7 @@ void myPID(){
   prevErrorPitch = errorPitch;
   
   //conver to ms signal
-  PIDoutPitch = PIDoutPitchAngle*scaleRC; 
+  PIDoutPitch = PIDoutPitchAngle*15; 
   //limits output to 200ms
   if (PIDoutPitch >  maxOutPitch)       PIDoutPitch = maxOutPitch;
   if (PIDoutPitch <  (-1*maxOutPitch))  PIDoutPitch = -1*maxOutPitch;  
@@ -255,7 +257,7 @@ void myPID(){
   prevErrorRoll = errorRoll;
   
   //conver to ms signal
-  PIDoutRoll = PIDoutRollAngle*scaleRC; 
+  PIDoutRoll = PIDoutRollAngle*15; 
   //limits output to 200ms
   if (PIDoutRoll >  maxOutRoll)       PIDoutRoll = maxOutRoll;
   if (PIDoutRoll <  (-1*maxOutRoll))  PIDoutRoll = -1*maxOutRoll;  
@@ -271,7 +273,7 @@ void myPID(){
   prevErrorYaw = errorYaw;
   
   //conver to ms signal
-  PIDoutYaw = PIDoutYawAngle*scaleRC; 
+  PIDoutYaw = PIDoutYawAngle*15; 
   //limits output to 200ms
   if (PIDoutYaw >  maxOutYaw)       PIDoutYaw = maxOutYaw;
   if (PIDoutYaw <  (-1*maxOutYaw))  PIDoutYaw = -1*maxOutYaw;  
