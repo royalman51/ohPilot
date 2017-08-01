@@ -9,17 +9,17 @@ long periodESC = 4000; //pulse period of ESC signal, thus also the main loop per
 float scaleRC = 15.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
 // PID settings;
-float P_pitch = 0.6;
-float I_pitch = 0.00;
-float D_pitch = 20.0;
+float P_pitch = 0.1;
+float I_pitch = 0.0;
+float D_pitch = 15.0; //restless at 30. stable at 20. Set to 0.75*20 = 15
 
 float P_roll = P_pitch;
 float I_roll = I_pitch;
 float D_roll = D_pitch;
 
-float P_yaw = 1.0;
+float P_yaw = 0.0;
 float I_yaw = 0.0;
-float D_yaw = 10.0;
+float D_yaw = 0.0;
 
 long maxOutPitch = 300;
 long maxOutRoll  = 300;
@@ -37,13 +37,16 @@ long THROTTLE_RC, ROLL_RC, PITCH_RC, YAW_RC; //keep as integer or long
 float anglePitchRC=0,angleRollRC=0,angleYawRC=0; //input angles from RC
 int iStart =0;
 
+//battery voltage
+float Vbat=13.0, readV=1023.0;
 
 //PID parameters
 float errorPitch, errorYaw, errorRoll;
 float prevErrorPitch=0,prevErrorRoll=0,prevErrorYaw=0;
 float errorPitchCum=0, errorYawCum=0, errorRollCum=0;
 float errorPitchDiv, errorYawDiv, errorRollDiv;
-long  PIDoutPitch, PIDoutRoll, PIDoutYaw, refPITCH, refROLL, refYAW;
+long  PIDoutPitch, PIDoutRoll, PIDoutYaw;
+float setPITCH, setROLL, setYAW;
 float PIDoutPitchAngle, PIDoutRollAngle, PIDoutYawAngle;
 
 
@@ -96,12 +99,13 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:  
   
-  getIMUAngles();
-  //Serial.print(motorStart);
-  //Serial.print(", i = ");
-  //Serial.print(iStart);
-  //Serial.print(", yaw out = ");
-  //Serial.println(PIDoutYaw);
+  //check battery voltage;
+  getVbat();
+  if (Vbat < 11.4){
+    digitalWrite(12,HIGH);
+  }    
+    
+  getIMUAngles();  
   
   //=====Motor start routine, sets flag and PID errors to zero=====
   if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)){
@@ -155,17 +159,18 @@ void loop() {
       THROTTLE_RC = RECIEVER[2];      
       if (THROTTLE_RC > 1900) THROTTLE_RC = 1900;     //set maximum to throttle, otherwise PID has no room for corrections
                   
-      //set inputs for PID, completentary filter can be used
-      refYAW   = refYAW   * 0.0 + 1.0 * (GYR_yaw/65.5); //yaw refernce is yaw angular rate
-      refPITCH = refPITCH * 0.0 + 1.0 * PITCH;          //pitch ref is pitch angle
-      refROLL  = refROLL  * 0.0 + 1.0 * ROLL;           //rol ref is roll angle
+      //setpoints inputs for PID, completentary filter can be used
+      setYAW   = setYAW   * 0.0 + 1.0 * (GYR_yaw/65.5); //yaw refernce is yaw angular rate
+      setPITCH = setPITCH * 0.0 + 1.0 * PITCH;          //pitch ref is pitch angle
+      setROLL  = setROLL  * 0.0 + 1.0 * ROLL;           //rol ref is roll angle
 
-      PID();
+      myPID();
 
-      //Serial.print("Yaw = ");
-      //Serial.print(refYAW);
-      //Serial.print(", PID out = ");
-      //Serial.println(PIDoutYaw);
+      //Serial.print("Pitch = ");
+      //Serial.print(setPITCH);
+      //Serial.print(", ");
+      //Serial.println(PIDoutPitchAngle);
+      
       if (RECIEVER[2] <= 1020) PIDoutYaw = 0; // disables yaw if throttle is zero
             
       //sets output to ESCs
@@ -175,10 +180,10 @@ void loop() {
       ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll-PIDoutYaw; //motor4, front left      
       
       //sets minimum value to 1000ms
-      if (ESCOUT[0] < 1070) ESCOUT[0] = 1070;
-      if (ESCOUT[1] < 1070) ESCOUT[1] = 1070;
-      if (ESCOUT[2] < 1070) ESCOUT[2] = 1070; //keeps engines running
-      if (ESCOUT[3] < 1070) ESCOUT[3] = 1070;
+      if (ESCOUT[0] < 1070) ESCOUT[0] = 1000;
+      if (ESCOUT[1] < 1070) ESCOUT[1] = 1000;
+      if (ESCOUT[2] < 1070) ESCOUT[2] = 1000; //keeps engines running
+      if (ESCOUT[3] < 1070) ESCOUT[3] = 1000;
 
       //sets maximum value to 2000ms
       if (ESCOUT[0] > 2000) ESCOUT[0] = 2000;
@@ -194,7 +199,7 @@ void loop() {
       ESCOUT[3] = 1000;
     }
     
-    while(micros()-timerMain < periodESC); // end of loop timer, wait for periodESC to pass
+    while(micros()-timerMain < 4000); // end of loop timer, wait for periodESC to pass
     timerMain = micros();  
   
     PORTD |= B11110000; //set pins to high (motor 1,2,3,4) HIGH   
@@ -207,33 +212,29 @@ void loop() {
     while (PORTD >= 16){
       timerESC = micros();
       if (timerPin4 <= timerESC){      
-        PORTD &= B11101111;      //set pin 4 (motor 1) LOW  
-                  
+        PORTD &= B11101111;      //set pin 4 (motor 1) LOW                    
       }
       if (timerPin5 <= timerESC){      
-        PORTD &= B11011111;      //set pin 5 (motor 1) LOW      
-            
+        PORTD &= B11011111;      //set pin 5 (motor 1) LOW                  
       }
       if (timerPin6 <= timerESC){      
-        PORTD &= B10111111;      //set pin 6 (motor 1) LOW     
-                
+        PORTD &= B10111111;      //set pin 6 (motor 1) LOW                     
       }
       if (timerPin7 <= timerESC){      
-        PORTD &= B01111111;      //set pin 7 (motor 1) LOW 
-              
+        PORTD &= B01111111;      //set pin 7 (motor 1) LOW               
       }
     }
 }
 
 //===== PID controller =====
-void PID(){
+void myPID(){
 //-----PID for pitch, with angular data-----
   //error = reference - sensor;
-  errorPitch     = anglePitchRC - refPITCH;
-  errorPitchCum += errorPitch;
+  errorPitch     = anglePitchRC - setPITCH;
+  errorPitchCum += I_pitch * errorPitch;
   errorPitchDiv  = errorPitch-prevErrorPitch;
 
-  PIDoutPitchAngle = (P_pitch*errorPitch) + (I_pitch * errorPitchCum) + (D_pitch * errorPitchDiv);
+  PIDoutPitchAngle = (P_pitch*errorPitch) + errorPitchCum + (D_pitch * errorPitchDiv);
 
   prevErrorPitch = errorPitch;
   
@@ -245,11 +246,11 @@ void PID(){
 
 //-----PID for roll, with angular data-----
   //error = reference - sensor;
-  errorRoll     = angleRollRC - refROLL;
-  errorRollCum += errorRoll;
+  errorRoll     = angleRollRC - setROLL;
+  errorRollCum += I_roll * errorRoll;
   errorRollDiv  = errorRoll-prevErrorRoll;
 
-  PIDoutRollAngle = (P_roll*errorRoll) + (I_roll * errorRollCum) + (D_roll * errorRollDiv);
+  PIDoutRollAngle = (P_roll*errorRoll) + errorRollCum + (D_roll * errorRollDiv);
 
   prevErrorRoll = errorRoll;
   
@@ -261,11 +262,11 @@ void PID(){
 
 //-----PID for yaw, with angular rates data-----
   //error = reference - sensor;
-  errorYaw     = angleYawRC - refYAW;
-  errorYawCum += errorYaw;
+  errorYaw     = angleYawRC - setYAW;
+  errorYawCum += I_yaw*errorYaw;
   errorYawDiv  = errorYaw-prevErrorYaw;
 
-  PIDoutYawAngle = (P_yaw*errorYaw) + (I_yaw * errorYawCum) + (D_yaw * errorYawDiv);
+  PIDoutYawAngle = (P_yaw*errorYaw) + errorYawCum + (D_yaw * errorYawDiv);
 
   prevErrorYaw = errorYaw;
   
@@ -407,7 +408,7 @@ ISR(PCINT0_vect){
     pin8  = 1;
     timerPin8 = timerPins; //signal 1
   }  
-  else if (pin8 == 1 && !(PINB & B00000001)){ 
+  else if (pin8 == 1){ 
     pin8 = 0;
     RECIEVER[0] = timerPins - timerPin8; //signal 0
   }
@@ -417,7 +418,7 @@ ISR(PCINT0_vect){
     pin9  = 1;
     timerPin9 = timerPins; //signal 1
   }  
-  else if (pin9 == 1 && !(PINB & B00000010)){ 
+  else if (pin9 == 1){ 
     pin9 = 0;
     RECIEVER[1] = timerPins - timerPin9; //signal 0
   }
@@ -427,7 +428,7 @@ ISR(PCINT0_vect){
     pin10 = 1;
     timerPin10 = timerPins; //signal 1
   }  
-  else if (pin10 == 1 && !(PINB & B00000100)){ 
+  else if (pin10 == 1){ 
     pin10 = 0;
     RECIEVER[2] = timerPins - timerPin10; //signal 0
   }
@@ -437,7 +438,7 @@ ISR(PCINT0_vect){
     pin11 = 1;
     timerPin11 = timerPins; //signal 1
   }  
-  else if (pin11 == 1 && !(PINB & B00001000)){ 
+  else if (pin11 == 1){ 
     pin11 = 0;
     RECIEVER[3] = timerPins - timerPin11; //signal 0
   }
@@ -452,6 +453,12 @@ ISR(PCINT0_vect){
   //  RECIEVER[4] = timerPins - timerPin12; //signal 0
   //}
 }
+
+void getVbat(){
+  readV = readV *0.7 + 0.3 * analogRead(A0);  
+  Vbat = 0.012244897959184 * readV -0.085102040816353;
+}
+
 
 void blinkStatusLED(int interval, int blinks){
   //LED blink routine. Do not run in void main! Only in void setup.  
