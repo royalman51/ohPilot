@@ -9,15 +9,15 @@ long periodESC = 4000; //pulse period of ESC signal, thus also the main loop per
 float scaleRC = 16.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
 // PID settings;
-float P_pitch = 1.6;   //(0.08)(0.035) (2) overcompenseren *0.5
-float I_pitch = 0.000; //(0.0012)(0.00005) (3) trage oscillaties *0.5
-float D_pitch = 60.0;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
+float P_pitch = 0.1;   //(0.08)(0.035) (2) overcompenseren *0.5
+float I_pitch = 0.007; //(0.0012)(0.00005) (3) trage oscillaties *0.5
+float D_pitch = 40.0;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
 
-float P_roll  = 1.6;
-float I_roll  = 0.00; 
-float D_roll  = 60.0;
+float P_roll  = 0.1;
+float I_roll  = 0.007; 
+float D_roll  = 40.0;
 
-float P_yaw = 0.02;
+float P_yaw = 0.002;
 float I_yaw = 0.00001;  //(0.0001)
 float D_yaw = 0.0;
 
