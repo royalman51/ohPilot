@@ -4,7 +4,7 @@
 #include <math.h>
 
 
-int motor = 5;
+int motor = 4;
 
 long motorNoise;
 // parameters which can be changed if you know what you are doing

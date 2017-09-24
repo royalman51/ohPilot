@@ -7,7 +7,7 @@
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   //set ports 4,5,6,7 to outputs
   DDRD = DDRD | B11110000;
   //set ports 8,9,10,11 to inputs and 12 to output;  
