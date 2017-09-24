@@ -9,17 +9,17 @@ long periodESC = 4000; //pulse period of ESC signal, thus also the main loop per
 float scaleRC = 16.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
 // PID settings;
-float P_pitch = 0.10;   //(0.08)(0.035) (2) overcompenseren *0.5
-float I_pitch = 0.00; //(0.0012)(0.00005) (3) trage oscillaties *0.5
-float D_pitch = 7.00;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
+float P_pitch = 0.07;   //(0.08)(0.035) (2) overcompenseren *0.5
+float I_pitch = 0.0005; //(0.0012)(0.00005) (3) trage oscillaties *0.5
+float D_pitch = 3.00;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
 
-float P_roll  = 0.10;
-float I_roll  = 0.00; 
-float D_roll  = 7.00;
+float P_roll  = 0.07;
+float I_roll  = 0.0005; 
+float D_roll  = 3.00;
 
-float P_yaw = 0.00;
-float I_yaw = 0.00;  //(0.0001)
-float D_yaw = 0.00;
+float P_yaw = 0.02;
+float I_yaw = 0.0005;  //(0.0001)
+float D_yaw = 0.08;
 
 long maxOutPitch = 400;
 long maxOutRoll  = 400;
@@ -58,7 +58,7 @@ int calIMU=0; //status indicator if imu is calibrated
 
 //accelerometer zero offsets
 float zeroACCx = -0.1454;
-float zeroACCy = -2.7861;
+float zeroACCy = 2.7861;
 float zeroACCz = 0.0;
 
 #define IMU_ADDR 0x68
@@ -75,7 +75,7 @@ void setup() {
   DDRD = DDRD | B11110000;
   //set ports 8,9,10,11 to inputs and 12 to output;  
   DDRB = DDRB | B00010000;  
-  digitalWrite(12,HIGH); //turns on STATUS LED
+  digitalWrite(13,HIGH); //turns on STATUS LED
 
   Wire.begin();
 
@@ -111,9 +111,9 @@ void loop() {
   getIMUAngles();  
 
   //for zeroing acc meter
-  //Serial.print(PITCH_ACC);
-  //Serial.print(", ");
-  //Serial.println(ROLL_ACC);
+  Serial.print(PITCH_ACC);
+  Serial.print(", ");
+  Serial.println(ROLL_ACC);
 
   
   //=====Motor start routine, sets flag and PID errors to zero=====
@@ -150,7 +150,7 @@ void loop() {
   //=====Converts RC signals to angles=====
   anglePitchRC = -((long)RECIEVER[1]-1500)/scaleRC; //= reference for PID
   angleRollRC  =  ((long)RECIEVER[0]-1500)/scaleRC; //= reference for PID
-  angleYawRC   = -((long)RECIEVER[3]-1500)/2;
+  angleYawRC   = -((long)RECIEVER[3]-1500)/1.4;
 
   
   //Serial.print("Roll == ");
@@ -170,9 +170,9 @@ void loop() {
       if (THROTTLE_RC > 1900) THROTTLE_RC = 1900;     //set maximum to throttle, otherwise PID has no room for corrections
                   
       //setpoints inputs for PID, completentary filter can be used
-      setYAW   = setYAW   * 0.0 + 1.0 * (GYR_yaw_F/65.5); //yaw refernce is yaw angular rate
-      setPITCH = setPITCH * 0.0 + 1.0 * PITCH;          //pitch ref is pitch angle
-      setROLL  = setROLL  * 0.0 + 1.0 * ROLL;           //rol ref is roll angle
+      setYAW   = setYAW   * 0.5 + 0.5 * (GYR_yaw_F/65.5); //yaw refernce is yaw angular rate
+      setPITCH = setPITCH * 0.5 + 0.5 * PITCH;          //pitch ref is pitch angle
+      setROLL  = setROLL  * 0.5 + 0.5 * ROLL;           //rol ref is roll angle
 
       myPID();
 
@@ -350,13 +350,13 @@ void getIMUData(){
   Wire.requestFrom(IMU_ADDR,14);
 
   if(Wire.available()<=14){
-    ACC_X     = Wire.read()<<8|Wire.read(); //ACC_X
+    ACC_X     = -(Wire.read()<<8|Wire.read()); //ACC_X
     ACC_Y     = Wire.read()<<8|Wire.read(); //ACC_Y
     ACC_Z     = Wire.read()<<8|Wire.read(); //ACC_Z
     TEMP      = Wire.read()<<8|Wire.read(); //TEMPERATURE
     GYR_pitch = -(Wire.read()<<8|Wire.read()); //GYRO_X
     GYR_roll  = Wire.read()<<8|Wire.read(); //GYRO_Y
-    GYR_yaw   = Wire.read()<<8|Wire.read(); //GYRO_Z  
+    GYR_yaw   = -(Wire.read()<<8|Wire.read()); //GYRO_Z  
   }          
 }
 
