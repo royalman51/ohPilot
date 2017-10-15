@@ -3,6 +3,34 @@
 //#include <LiquidCrystal.h> //for debugging purposes
 #include <math.h>
 
+//########### Quadcopter flight controller using Arduino Uno Wifi #############
+//##                                                                         ## 
+//##    - using a S500 frame with 2212 1000kV motor with 1050 props          ##
+//##    - flying on 3S 5000mAh 50C battery                                   ##
+//##    - IMU is an MPU-6050, in normal orientation                          ##
+//##    - controlled with an FS-i6 Remote +iA6b reciever                     ##
+//##    - reciever running in 4 channgel PWM                                 ##
+//##    - script runs in autolevel mode                                      ##  
+//##                                                                         ##
+//##    To run on a new quad:                                                ##
+//##      - Level the IMU accelerometer:                                     ##
+//##          Position quad on level ground an measure stationary values     ##
+//##          for PITCH_ACC and ROLL_ACC using serial monitor. Zero offset   ##
+//##          values can be put into 'zeroACCx' and 'zeroACCy'. Run again    ##
+//##          to check if stationary values are close to zero                ##
+//##                                                                         ## 
+//##      - Check correct orentiation of IMU angles:                         ##
+//##          Output ROLL, PITCH and YAW in serial monitor and check if      ##
+//##          angles correspond with:                                        ##
+//## http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame.png ##
+//##          Orientation can be changed in getIMUData()                     ##
+//##                                                                         ## 
+//##      - With props of check if motors are correctly responding to pilot  ##
+//##        pilot intput.                                                    ## 
+//##                                                                         ## 
+//##      - Tune PID controllers                                             ##
+//##                                                                         ## 
+//#############################################################################    
 
 // parameters which can be changed if you know what you are doing
 long periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
@@ -57,8 +85,8 @@ float zeroX, zeroY, zeroZ;
 int calIMU=0; //status indicator if imu is calibrated
 
 //accelerometer zero offsets
-float zeroACCx = -0.1454;
-float zeroACCy = 2.7861;
+float zeroACCx = 0.6598; //PITCH
+float zeroACCy = -3.7425; //ROLL
 float zeroACCz = 0.0;
 
 #define IMU_ADDR 0x68
@@ -74,7 +102,7 @@ void setup() {
   //set ports 4,5,6,7 to outputs
   DDRD = DDRD | B11110000;
   //set ports 8,9,10,11 to inputs and 12 to output;  
-  DDRB = DDRB | B00100000;  
+  DDRB = DDRB | B00010000;  
   digitalWrite(13,HIGH); //turns on STATUS LED
 
   Wire.begin();
@@ -107,14 +135,6 @@ void loop() {
     //digitalWrite(13,HIGH);
   //}    
 
-    
-  getIMUAngles();  
-
-  //for zeroing acc meter
-  //Serial.print(PITCH_ACC);
-  //Serial.print(", ");
-  //Serial.println(ROLL_ACC);
-
   //checking channel inputs
   Serial.print("channel 1: ");
   Serial.print(RECIEVER[0]);
@@ -124,6 +144,14 @@ void loop() {
   Serial.print(RECIEVER[2]);
   Serial.print(", channel 4: ");
   Serial.println(RECIEVER[3]);
+
+    
+  getIMUAngles();  
+
+  //for zeroing acc meter
+  //Serial.print(PITCH_ACC);
+  //Serial.print(", ");
+  //Serial.println(ROLL_ACC);
 
   
   //=====Motor start routine, sets flag and PID errors to zero=====
@@ -162,7 +190,7 @@ void loop() {
   angleRollRC  =  ((long)RECIEVER[0]-1500)/scaleRC; //= reference for PID
   angleYawRC   = -((long)RECIEVER[3]-1500)/1.4;
 
-  
+  //For testing outputs
   //Serial.print("Roll == ");
   //Serial.print(ROLL);
   //Serial.print(", Pitch == ");
@@ -340,8 +368,8 @@ void getIMUAngles(){
   
   if (calIMU==1){        
     //complementary filter
-    PITCH = PITCH * 0.9996 + PITCH_ACC * 0.0004;
-    ROLL  = ROLL  * 0.9996 + ROLL_ACC  * 0.0004;
+    PITCH = PITCH * 0.996 + PITCH_ACC * 0.004;
+    ROLL  = ROLL  * 0.996 + ROLL_ACC  * 0.004;
   } 
   else{
     //for first run, angles equal to angles of accelerometer
@@ -360,20 +388,20 @@ void getIMUData(){
   Wire.requestFrom(IMU_ADDR,14);
 
   if(Wire.available()<=14){
-    ACC_X     = -(Wire.read()<<8|Wire.read()); //ACC_X
+    ACC_X     = Wire.read()<<8|Wire.read(); //ACC_X
     ACC_Y     = Wire.read()<<8|Wire.read(); //ACC_Y
     ACC_Z     = Wire.read()<<8|Wire.read(); //ACC_Z
     TEMP      = Wire.read()<<8|Wire.read(); //TEMPERATURE
-    GYR_pitch = -(Wire.read()<<8|Wire.read()); //GYRO_X
+    GYR_pitch = Wire.read()<<8|Wire.read(); //GYRO_X
     GYR_roll  = Wire.read()<<8|Wire.read(); //GYRO_Y
-    GYR_yaw   = -(Wire.read()<<8|Wire.read()); //GYRO_Z  
+    GYR_yaw   = Wire.read()<<8|Wire.read(); //GYRO_Z  
   }          
 }
 
 //===== Fuction for calibrating the IMU at the start (void setup)=====
 void calibrateIMU(){
   
-  int points = 500;
+  int points = 1500;
   int stateLED = 0;
   digitalWrite(13,HIGH);
   getIMUData(); 
@@ -489,9 +517,9 @@ void blinkStatusLED(int interval, int blinks){
   //LED blink routine. Do not run in void main! Only in void setup.  
   int i;
   for (i=1;i<=blinks;i++){
-    digitalWrite(12,HIGH);
+    digitalWrite(13,HIGH);
     delay(interval);
-    digitalWrite(12,LOW);
+    digitalWrite(13,LOW);
     delay(interval);
   }  
 }

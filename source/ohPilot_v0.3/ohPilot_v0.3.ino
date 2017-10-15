@@ -35,9 +35,8 @@
 
 // parameters which can be changed if you know what you are doing
 long periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
-float scaleRC = 17.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
 
-// PID settings;
+//===== PID settings =====;
 float P_pitch = 0.07;   //(0.08)(0.035) (2) overcompenseren *0.5
 float I_pitch = 0.0005; //(0.0012)(0.00005) (3) trage oscillaties *0.5
 float D_pitch = 3.00;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
@@ -54,8 +53,19 @@ long maxOutPitch = 400;
 long maxOutRoll  = 400;
 long maxOutYaw   = 400;
 
-// parameters which should not be changed, parameters for sending and recieving motor signals
-unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPin12, timerPins, RECIEVER[6], ESCOUT[3], timerESC;
+//===== tuning settings =====
+//accelerometer zero offsets
+float zeroACCx = 0.6598; //PITCH
+float zeroACCy = -3.7425; //ROLL
+float zeroACCz = 0.0;
+
+float scaleRC = 17.0; //influences maximum angle of quad (RATE), angle = 500/scale RC, 15->33.33 deg 14->35.71 13->38.45 12->41.667 11->45.4545deg
+
+//===== Misc settings =====
+int motorArmChannel = 7; //a switch used to arm the motor (0 for no functionaly)
+
+//===== parameters which should not be changed, parameters for sending and recieving motor signals =====
+unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPin12, timerPins, RECIEVER[10], ESCOUT[3], timerESC;
 long timerMain;
 int tTest;
 int tprev = 0;
@@ -66,10 +76,10 @@ long THROTTLE_RC, ROLL_RC, PITCH_RC, YAW_RC; //keep as integer or long
 float anglePitchRC=0,angleRollRC=0,angleYawRC=0; //input angles from RC
 int iStart =0;
 
-//battery voltage
+//===== battery voltage =====
 float Vbat=13.0, readV=1023.0;
 
-//PID parameters
+//===== PID parameters =====
 float errorPitch, errorYaw, errorRoll;
 float prevErrorPitch=0,prevErrorRoll=0,prevErrorYaw=0;
 float errorPitchCum=0, errorYawCum=0, errorRollCum=0;
@@ -79,26 +89,26 @@ float setPITCH, setROLL, setYAW;
 float PIDoutPitchAngle, PIDoutRollAngle, PIDoutYawAngle;
 
 
-//parameters for IMU
+//===== parameters for IMU =====
 float GYR_pitch_F, GYR_roll_F, GYR_yaw_F, GYR_pitch, GYR_roll, GYR_yaw, ACC_X, ACC_Y, ACC_Z, TEMP; //raw values from reading IMU modules
 float PITCH, ROLL, YAW, PITCH_GYR, ROLL_GYR, YAW_GYR, PITCH_ACC, ROLL_ACC, Z_ACC; //IMU determined angles
 float zeroX, zeroY, zeroZ;
 int calIMU=0; //status indicator if imu is calibrated
 
-//accelerometer zero offsets
-float zeroACCx = 0.6598; //PITCH
-float zeroACCy = -3.7425; //ROLL
-float zeroACCz = 0.0;
+//===== Misc parameters =====
+int LEDmotor = 0;
 
 #define IMU_ADDR 0x68
 #define WAKE_REG 0x6B
 #define ACC_REG  0x3B
 
+#define LED_CONTR_ADDR 5
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(115200);
+  //Serial.begin(115200);
   IBus.begin(Serial);
+
   
   //-----setup for arduino ports------   
   //set ports 4,5,6,7 to outputs
@@ -107,9 +117,22 @@ void setup() {
   DDRB = DDRB | B00100000;  
   digitalWrite(13,HIGH); //turns on STATUS LED
 
-  Wire.begin();
+  //send pulse to ESCs
+  for (int i = 0; i < 1250 ; i++){
+    PORTD |= B11110000;
+    delayMicroseconds(1000);
+    PORTD &= B00001111;
+    delayMicroseconds(3000);
+  }
 
-  delay(3000);
+  //initialize i2c and turn off motor LEDs
+  Wire.begin();
+  
+  
+  //delay(3000);
+  send2LEDcontroller('0'); 
+
+
   
   //-----configure interrupts (only when using PWM) -----
 //  PCICR  |= (1<<PCIE0); //sets Pin change interrupt control register to activate PCMSK0 register
@@ -126,6 +149,21 @@ void setup() {
   digitalWrite(13,LOW);
   //-----start of loop timer-----
   timerMain = micros();  // start of loop timer 
+
+  //wait for receiver to be on
+  while(RECIEVER[0] == 0 ){
+    getTXInputs();
+
+    //flash status LED
+    digitalWrite(13,HIGH);
+    delay(1000);
+    digitalWrite(13,LOW);
+    delay(1000);         
+  }
+  
+  //turns on wing LEDs
+  send2LEDcontroller('1');
+  LEDmotor = 1; 
 }
 
 void loop() {
@@ -143,27 +181,44 @@ void loop() {
   getIMUAngles();  
 
   //checking channel inputs
-//  Serial.print("channel 1: ");
 //  Serial.print(RECIEVER[0]);
-//  Serial.print(", channel 2: ");
+//  Serial.print(", ");
 //  Serial.print(RECIEVER[1]);
-//  Serial.print(", channel 3: ");
+//  Serial.print(", ");
 //  Serial.print(RECIEVER[2]);
-//  Serial.print(", channel 4: ");
+//  Serial.print(", ");
 //  Serial.print(RECIEVER[3]);
-//  Serial.print(", channel 5: ");
+//  Serial.print(", ");
 //  Serial.print(RECIEVER[4]);
-//  Serial.print(", channel 6: ");
-//  Serial.println(RECIEVER[5]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[5]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[6]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[7]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[8]);
+//  Serial.print(", ");
+//  Serial.println(RECIEVER[9]);
 
   //for zeroing acc meter
   //Serial.print(PITCH_ACC);
   //Serial.print(", ");
   //Serial.println(ROLL_ACC);
 
+  //=====Misc functionality=====
+//  if ((RECIEVER[9] > 1950) && (LEDmotor == 0)){
+//    send2LEDcontroller('1'); 
+//    LEDmotor = 1;
+//  }
+//  if ((RECIEVER[9] < 1050) && (LEDmotor == 1)){
+//    send2LEDcontroller('0'); 
+//    LEDmotor = 0;
+//  }
+
   
   //=====Motor start routine, sets flag and PID errors to zero=====
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)){
+  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980) && (RECIEVER[motorArmChannel-1] > 1950) ){
     motorStart = 1; //turns on motors
     //sets PID error integration to zero
     errorPitchCum = 0;
@@ -173,9 +228,15 @@ void loop() {
     prevErrorRoll  = 0;
     prevErrorYaw   = 0;
     setYAW         = 0;
+    send2LEDcontroller('1'); 
+    LEDmotor = 1;
+  }
+
+  if ((motorStart == 1) && (RECIEVER[2] < 1050) && (RECIEVER[3] < 1550))  {
+    motorStart = 2;
   }
   
-  if ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020)){    
+  if ( ((RECIEVER[2] <= 1020) && (RECIEVER[3] < 1020))  || ((RECIEVER[motorArmChannel-1] < 1050)) ) {    
     iStart += 1;
     if (iStart > 20){
       motorStart = 0; //turns off motors
@@ -188,6 +249,8 @@ void loop() {
       prevErrorRoll  = 0;
       prevErrorYaw   = 0;
       setYAW         = 0;
+      send2LEDcontroller('0'); 
+      LEDmotor = 0;
     }    
   }
   else{
@@ -219,7 +282,7 @@ void loop() {
 
 
 
-    if (motorStart == 1){      
+    if (motorStart == 2){      
       //value of throttle its zero position;
       THROTTLE_RC = RECIEVER[2];      
       if (THROTTLE_RC > 1900) THROTTLE_RC = 1900;     //set maximum to throttle, otherwise PID has no room for corrections
@@ -245,10 +308,10 @@ void loop() {
       ESCOUT[3] = THROTTLE_RC+PIDoutPitch+PIDoutRoll+PIDoutYaw; //motor4, front left      
       
       //sets minimum value to 1000ms
-      if (ESCOUT[0] < 1070) ESCOUT[0] = 1050;
-      if (ESCOUT[1] < 1070) ESCOUT[1] = 1050;
-      if (ESCOUT[2] < 1070) ESCOUT[2] = 1050; //keeps engines running
-      if (ESCOUT[3] < 1070) ESCOUT[3] = 1050;
+      if (ESCOUT[0] < 1070) ESCOUT[0] = 1060;
+      if (ESCOUT[1] < 1070) ESCOUT[1] = 1060;
+      if (ESCOUT[2] < 1070) ESCOUT[2] = 1060; //keeps engines running
+      if (ESCOUT[3] < 1070) ESCOUT[3] = 1060;
 
       //sets maximum value to 2000ms
       if (ESCOUT[0] > 2000) ESCOUT[0] = 2000;
@@ -430,7 +493,7 @@ void calibrateIMU(){
     zeroY += GYR_roll;
     zeroZ += GYR_yaw;
     // turn on/off status light every 100 points
-    if (i % 100 == 0){
+    if (i % 50 == 0){
       digitalWrite(13, (stateLED) ? HIGH : LOW);
       stateLED = !stateLED;
     }
@@ -475,6 +538,10 @@ void getTXInputs(){
   RECIEVER [3] = IBus.readChannel(3); //channel 4
   RECIEVER [4] = IBus.readChannel(4); //channel 5
   RECIEVER [5] = IBus.readChannel(5); //channel 6
+  RECIEVER [6] = IBus.readChannel(6); //channel 7
+  RECIEVER [7] = IBus.readChannel(7); //channel 8
+  RECIEVER [8] = IBus.readChannel(8); //channel 9
+  RECIEVER [9] = IBus.readChannel(9); //channel 10
 }
 
 ////===== Interrupt sub routine. Reads the reciever signals=====
@@ -550,6 +617,12 @@ void blinkStatusLED(int interval, int blinks){
   }  
 }
 
+void send2LEDcontroller(char c){
+  //send 1 for LEDS on, send 0 for LEDS, off
+  Wire.beginTransmission(LED_CONTR_ADDR);
+  Wire.write(c);
+  Wire.endTransmission();
+}
 
 
 

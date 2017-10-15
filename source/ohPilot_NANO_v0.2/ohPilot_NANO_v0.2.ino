@@ -3,6 +3,34 @@
 //#include <LiquidCrystal.h> //for debugging purposes
 #include <math.h>
 
+//########### Quadcopter flight controller using Arduino Nano     #############
+//##                                                                         ## 
+//##    - using a 137mm frame with 1407 motors an 3inch props                ##
+//##    - flying on 4s 1000mAh 75c battery                                   ##
+//##    - IMU is an MPU-6050, in INVERTED orientation (change required axis) ##
+//##    - controlled with an FS-i6 Remote + Fs-R6B reciever                  ##
+//##    - reciever running in 4 channgel PWM                                 ##
+//##    - script runs in autolevel mode                                      ##        
+//##                                                                         ##
+//##    To run on a new quad:                                                ##
+//##      - Level the IMU accelerometer:                                     ##
+//##          Position quad on level ground an measure stationary values     ##
+//##          for PITCH_ACC and ROLL_ACC using serial monitor. Zero offset   ##
+//##          values can be put into 'zeroACCx' and 'zeroACCy'. Run again    ##
+//##          to check if stationary values are close to zero                ##
+//##                                                                         ## 
+//##      - Check correct orentiation of IMU angles:                         ##
+//##          Output ROLL, PITCH and YAW in serial monitor and check if      ##
+//##          angles correspond with:                                        ##
+//## http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame.png ##
+//##          Orientation can be changed in getIMUData()                     ##
+//##                                                                         ## 
+//##      - With props of check if motors are correctly responding to pilot  ##
+//##        pilot intput.                                                    ## 
+//##                                                                         ## 
+//##      - Tune PID controllers                                             ##
+//##                                                                         ## 
+//#############################################################################   
 
 // parameters which can be changed if you know what you are doing
 long periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
@@ -68,13 +96,13 @@ float zeroACCz = 0.0;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(115200);
+  Serial.begin(115200); //for debugging
   
   //-----setup for arduino ports------   
   //set ports 4,5,6,7 to outputs
   DDRD = DDRD | B11110000;
   //set ports 8,9,10,11 to inputs and 12 to output;  
-  DDRB = DDRB | B00100000;  
+  DDRB = DDRB | B00010000;  
   digitalWrite(13,HIGH); //turns on STATUS LED
 
   Wire.begin();
@@ -115,7 +143,7 @@ void loop() {
   //Serial.print(", ");
   //Serial.println(ROLL_ACC);
 
-  //checking channel inputs
+ //checking channel inputs
   Serial.print("channel 1: ");
   Serial.print(RECIEVER[0]);
   Serial.print(", channel 2: ");
@@ -124,7 +152,6 @@ void loop() {
   Serial.print(RECIEVER[2]);
   Serial.print(", channel 4: ");
   Serial.println(RECIEVER[3]);
-
   
   //=====Motor start routine, sets flag and PID errors to zero=====
   if ((RECIEVER[2] <= 1020) && (RECIEVER[3] > 1980)){
