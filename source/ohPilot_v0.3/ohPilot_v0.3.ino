@@ -202,10 +202,26 @@ void loop() {
 //  Serial.println(RECIEVER[9]);
 
   //for zeroing acc meter
-  //Serial.print(PITCH_ACC);
-  //Serial.print(", ");
-  //Serial.println(ROLL_ACC);
+//  Serial.print(PITCH_ACC);
+//  Serial.print(", ");
+//  Serial.println(ROLL_ACC);
 
+
+
+  //check
+//  Serial.print(PITCH);
+//  Serial.print(", ");
+//  Serial.print(ROLL); 
+//  Serial.print(", ");
+//  Serial.print((GYR_yaw_F/65.5)); 
+//  Serial.print(", ");
+//  Serial.print(anglePitchRC); 
+//  Serial.print(", ");
+//  Serial.print(angleRollRC); 
+//  Serial.print(", ");
+//  Serial.println(angleYawRC); 
+
+  
   //=====Misc functionality=====
 //  if ((RECIEVER[9] > 1950) && (LEDmotor == 0)){
 //    send2LEDcontroller('1'); 
@@ -268,7 +284,7 @@ void loop() {
   //=====Converts RC signals to angles=====
   anglePitchRC = -((long)RECIEVER[1]-1500)/scaleRC; //= reference for PID
   angleRollRC  =  ((long)RECIEVER[0]-1500)/scaleRC; //= reference for PID
-  angleYawRC   = -((long)RECIEVER[3]-1500)/1.4;
+  angleYawRC   = -((long)RECIEVER[3]-1500)/2;
 
   //For testing outputs
   //Serial.print("Roll == ");

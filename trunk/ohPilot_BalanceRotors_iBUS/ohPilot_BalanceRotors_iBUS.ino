@@ -3,6 +3,8 @@
 //#include <LiquidCrystal.h> //for debugging purposes
 #include <math.h>
 #include "FlySkyIBus.h"
+#include <EEPROM.h>
+
 
 int motor = 0;
 
@@ -13,8 +15,8 @@ float scaleRC = 15.0; //influences maximum angle of quad (RATE), angle = 500/sca
 
 // PID settings;
 float P_pitch = 1.0;
-float I_pitch = 0.0;
-float D_pitch = 0.0;
+float I_pitch = 0.1;
+float D_pitch = 0.1;
 
 float P_roll = P_pitch;
 float I_roll = I_pitch;
@@ -27,6 +29,16 @@ float D_yaw = 0.0;
 long maxOutPitch = 300;
 long maxOutRoll  = 300;
 long maxOutYaw   = 300;
+
+static int setPIDs = 1; //routine to config pids during flight
+static int chNobInc  = 5; //channel for incrementation nob
+static int chNobDec  = 6; //channel for incrementation nob
+static int chSwchPID = 9; //channel for threeway switch
+int K=0; 
+int kInc=50; 
+float dP_pitch=50.0,dI_pitch=50.0,dD_pitch=50.0;
+int saveEEPROM = 1;
+
 
 // parameters which should not be changed, parameters for sending and recieving motor signals
 unsigned long t0, timerPin4, timerPin5, timerPin6, timerPin7, timerPin8, timerPin9, timerPin10, timerPin11, timerPins, RECIEVER[10], ESCOUT[4], timerESC;
@@ -101,32 +113,47 @@ void loop() {
   getTXInputs();  //reading iBUS inputs
   getIMUAngles();
 
-  //check input signals
-  //Serial.print("channel 1 : ");
-  Serial.print(RECIEVER[0]);
-  //Serial.print(", channel 2 : ");
-  Serial.print(", ");
-  Serial.print(RECIEVER[1]);
-  //Serial.print(", channel 3 : ");
-  Serial.print(", ");
-  Serial.print(RECIEVER[2]);
-  //Serial.print(", channel 4 : ");
-  Serial.print(", ");
-  Serial.print(RECIEVER[3]);
-  //Serial.print(", channel 5 : ");
+  if (setPIDs == 1){
+    tunePIDs();
+  }
+
+  //
+  Serial.print(K);
   Serial.print(", ");
   Serial.print(RECIEVER[4]);
-  //Serial.print(", channel 6 : ");
   Serial.print(", ");
   Serial.print(RECIEVER[5]);
   Serial.print(", ");
-  Serial.print(RECIEVER[6]);
+  Serial.print(P_pitch);
   Serial.print(", ");
-  Serial.print(RECIEVER[7]);
+  Serial.print(I_pitch);
   Serial.print(", ");
-  Serial.print(RECIEVER[8]);
-  Serial.print(", ");
-  Serial.println(RECIEVER[9]);
+  Serial.println(D_pitch);
+  
+
+  //check input signals
+//  Serial.print(RECIEVER[0]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[1]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[2]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[3]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[4]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[5]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[6]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[7]);
+//  Serial.print(", ");
+//  Serial.print(RECIEVER[8]);
+//  Serial.print(", ");
+//  Serial.println(RECIEVER[9]);
+
+
+
   
 
   //=====Motor start routine, sets flag and PID errors to zero=====
@@ -311,10 +338,101 @@ void PID(){
   //limits output to 200ms
   if (PIDoutYaw >  maxOutYaw)       PIDoutYaw = maxOutYaw;
   if (PIDoutYaw <  (-1*maxOutYaw))  PIDoutYaw = -1*maxOutYaw;  
+  
+}
 
+//===== set PIDs during void setup, reads from EEPROM ====
+void initPIDs(){
+    
+}
 
+//===== set PIDs during flight with turning nobs and three way switch =====
+void tunePIDs(){
+
+  //store to eemprom if nobs are off. Operation done once
+  if ((RECIEVER[chNobInc-1] < 1050) && (RECIEVER[chNobDec-1] < 1050) && (saveEEPROM == 0)){
+    
+    saveEEPROM = 1;
+  }
+  else{
+    saveEEPROM = 0;
+  }
   
   
+  //tune either Kp, Ki or Kd
+  if (RECIEVER[chSwchPID-1] > 1950){
+    K = 2; //tune D
+  }
+  else if ((RECIEVER[chSwchPID-1] > 1450) && (RECIEVER[chSwchPID-1] < 1550)) {
+    K = 1; //tune I
+  }
+  else if (RECIEVER[chSwchPID-1] < 1050) {
+    K = 0; //tune P
+  }
+
+  //
+  if (RECIEVER[chNobInc-1] > 1050){
+    kInc = (2010-RECIEVER[chNobInc-1])*100;
+
+
+    switch (K){
+      case 0:{
+      
+        if (kInc != 0){
+          dP_pitch = P_pitch/kInc;
+        }
+        P_pitch += dP_pitch;  
+        break; 
+      }  
+      case 1:{
+        if (kInc != 0){
+          dI_pitch = I_pitch/kInc;
+        }
+        I_pitch += dI_pitch;  
+        break; 
+      }
+      case 2:{
+        if (kInc != 0){
+          dD_pitch = D_pitch/kInc;
+        }
+        D_pitch += dD_pitch;  
+        break; 
+      }         
+    }     
+  }
+
+  
+  if (RECIEVER[chNobDec-1] > 1050){
+    kInc = (2010-RECIEVER[chNobDec-1])*100;
+
+    switch (K){
+      case 0:{
+        if (kInc != 0){
+          dP_pitch = P_pitch/kInc;
+        }
+        P_pitch -= dP_pitch; 
+        break;   
+      }  
+      case 1:{
+        if (kInc != 0){
+          dI_pitch = I_pitch/kInc;
+        }
+        I_pitch -= dI_pitch;  
+        break; 
+      }
+      case 2:{
+        if (kInc != 0){
+          dD_pitch = D_pitch/kInc;
+        }
+        D_pitch -= dD_pitch; 
+        break;    
+      }       
+    }   
+  }
+  
+  //  
+  
+
   
 }
 
