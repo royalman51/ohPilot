@@ -37,16 +37,16 @@
 long periodESC = 4000; //pulse period of ESC signal, thus also the main loop period
 
 //===== PID settings =====;
-float P_pitch = 0.07;   //(0.08)(0.035) (2) overcompenseren *0.5
-float I_pitch = 0.0005; //(0.0012)(0.00005) (3) trage oscillaties *0.5
-float D_pitch = 3.00;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
+float P_pitch = 0.12;   //(0.08)(0.035) (2) overcompenseren *0.5
+float I_pitch = 0.0008; //(0.0012)(0.00005) (3) trage oscillaties *0.5
+float D_pitch = 10.00;  //(30.0)(15.0) (1) unrustig -> rustig *0.75
 
-float P_roll  = 0.07;
-float I_roll  = 0.0005; 
-float D_roll  = 3.00;
+float P_roll  = 0.12;
+float I_roll  = 0.0008; 
+float D_roll  = 10.00;
 
-float P_yaw = 0.02;
-float I_yaw = 0.0005;  //(0.0001)
+float P_yaw = 0.03;
+float I_yaw = 0.008;  //(0.0001)
 float D_yaw = 0.08;
 
 long maxOutPitch = 400;
